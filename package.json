@@ -1,26 +1,32 @@
 {
-  "name": "node-project",
-  "version": "1.0.0",
-  "description": "Empty node project",
-  "scripts": {
-    "test": "make tests"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+ssh://github.com/petitchevalroux/node-project.git"
-  },
-  "author": "Patrick Poulain",
-  "license": "GPL-3.0",
-  "bugs": {
-    "url": "https://github.com/petitchevalroux/node-project/issues"
-  },
-  "homepage": "https://github.com/petitchevalroux/node-project#readme",
-  "devDependencies": {
-    "eslint": "^3.3.1",
-    "eslint-plugin-promise": "^2.0.1",
-    "istanbul": "^0.4.4",
-    "js-beautify": "^1.6.3",
-    "mocha": "^3.0.2",
-    "sinon": "^1.17.5"
-  }
+    "name": "@petitchevalroux/node-http-download-stream",
+    "version": "0.0.0",
+    "description": "",
+    "scripts": {
+        "test": "make tests"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+ssh://github.com/petitchevalroux/node-http-download-stream.git"
+    },
+    "author": "Patrick Poulain",
+    "license": "GPL-3.0",
+    "bugs": {
+        "url": "https://github.com/petitchevalroux/node-http-download-stream/issues"
+    },
+    "homepage": "https://github.com/petitchevalroux/node-http-download-stream#readme",
+    "devDependencies": {
+        "eslint": "^3.3.1",
+        "eslint-plugin-promise": "^2.0.1",
+        "istanbul": "^0.4.4",
+        "js-beautify": "^1.6.3",
+        "mocha": "^3.0.2",
+        "nock": "^9.0.14",
+        "sinon": "^3.2.0"
+    },
+    "dependencies": {
+        "@petitchevalroux/error": "^1.0.1",
+        "bluebird": "^3.5.0",
+        "request": "^2.81.0"
+    }
 }
