@@ -1,10 +1,12 @@
 "use strict";
-
 const {
     Transform
 } = require("stream");
 const request = require("request");
 const Error = require("@petitchevalroux/error");
+const {
+    RateLimiter
+} = require("limiter");
 
 class HttpDownloadStream extends Transform {
     constructor(options) {
@@ -12,7 +14,9 @@ class HttpDownloadStream extends Transform {
             "timeout": 5000,
             "followRedirect": true,
             "maxRedirects": 2,
-            "readableObjectMode": true
+            "readableObjectMode": true,
+            "rateCount": 5,
+            "rateWindow": 10000
         }, options || {});
         super(options);
         if (typeof(options.httpClient) === "undefined") {
@@ -28,28 +32,38 @@ class HttpDownloadStream extends Transform {
         } else {
             this.httpClient = options.httpClient;
         }
+        this.limiter = new RateLimiter(options.rateCount, options.rateWindow);
     }
 
     _transform(chunk, encoding, callback) {
-        if (Buffer.isBuffer(chunk)) {
-            chunk = chunk.toString();
-        }
-        this.httpClient.get(chunk, (err, response, body) => {
+
+        const self = this;
+        this.limiter.removeTokens(1, function(err) {
             if (err) {
-                callback(new Error("Unable to download (chunk: %s)",
-                    chunk, err));
+                callback(err);
                 return;
             }
-            callback(
-                null, {
-                    "input": chunk,
-                    "output": {
-                        "headers": response.headers,
-                        "statusCode": response.statusCode,
-                        "body": body
-                    }
+            if (Buffer.isBuffer(chunk)) {
+                chunk = chunk.toString();
+            }
+            self.httpClient.get(chunk, (err, response, body) => {
+                if (err) {
+                    callback(new Error(
+                        "Unable to download (chunk: %s)",
+                        chunk, err));
+                    return;
                 }
-            );
+                callback(
+                    null, {
+                        "input": chunk,
+                        "output": {
+                            "headers": response.headers,
+                            "statusCode": response.statusCode,
+                            "body": body
+                        }
+                    }
+                );
+            });
         });
     }
 }

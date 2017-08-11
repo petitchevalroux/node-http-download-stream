@@ -1,14 +1,16 @@
 "use strict";
-const path = require("path");
-const Promise = require("bluebird");
-const Transform = require(path.join(__dirname, "..", "src", "stream"));
-const {
-    PassThrough,
-    Writable
-} = require("stream");
-const nock = require("nock");
-const sinon = require("sinon");
-const assert = require("assert");
+const path = require("path"),
+    Promise = require("bluebird"),
+    {
+        Transform
+    } = require(path.join(__dirname, "..", "src")),
+    {
+        PassThrough,
+        Writable
+    } = require("stream"),
+    nock = require("nock"),
+    sinon = require("sinon"),
+    assert = require("assert");
 
 describe("Stream", () => {
     it("Should emit an error when downloading do", () => {
@@ -81,5 +83,51 @@ describe("Stream", () => {
             input.write("http://example.com/1");
             input.write("http://example.com/2");
         });
+    });
+
+    it("Should respect rate settings", (done) => {
+        let lastRequestTime;
+        nock("http://example.com")
+            .get("/first")
+            .reply((uri, request, cb) => {
+                lastRequestTime = new Date()
+                    .getTime();
+                cb(null, 200);
+            })
+            .get("/second")
+            .reply((uri, request, cb) => {
+                const date = new Date()
+                    .getTime();
+                assert(date - lastRequestTime < 333);
+                lastRequestTime = new Date()
+                    .getTime();
+                cb(null, 200);
+            })
+            .get("/third")
+            .reply((uri, request, cb) => {
+                const date = new Date()
+                    .getTime();
+                assert(date - lastRequestTime >= 333);
+                done();
+                cb(null, 200);
+            });
+        const transform = new Transform({
+            rateCount: 2,
+            rateWindow: 333
+        });
+        const input = new PassThrough();
+        const output = new Writable({
+            "objectMode": true,
+            "write": (chunk, encoding, callback) => {
+                callback();
+            }
+        });
+        input
+            .pipe(transform)
+            .pipe(output);
+        input.write("http://example.com/first");
+        input.write("http://example.com/second");
+        input.write("http://example.com/third");
+
     });
 });
