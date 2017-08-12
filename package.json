@@ -1,6 +1,6 @@
 {
     "name": "@petitchevalroux/node-http-download-stream",
-    "version": "0.0.0",
+    "version": "1.0.0",
     "description": "Node transform stream downloading url in input with retry and rate limit",
     "main": "src/index.js",
     "scripts": {
