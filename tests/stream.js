@@ -172,4 +172,52 @@ describe("Stream", () => {
         input.write("http://example.com/retry");
         input.push(null);
     });
+
+    it("Should retry on socket timeout", (done) => {
+        let requestCount = 0;
+        nock("http://example.com")
+            .get("/timeout")
+            .times(2)
+            .socketDelay(100)
+            .reply((uri, request, cb) => {
+                requestCount++;
+                cb(null, [200, ""]);
+            })
+            .get("/timeout")
+            .times(2)
+            .reply((uri, request, cb) => {
+                requestCount++;
+                cb(null, [200, ""]);
+            });
+        const results = [];
+        const input = new PassThrough();
+        const output = new Writable({
+            "objectMode": true,
+            "write": (chunk, encoding, callback) => {
+                results.push(chunk);
+                callback();
+            }
+        });
+        const transform = new Transform({
+            "timeout": 99,
+            retries: 2,
+            retryMinTimeout: 0
+        });
+        input
+            .pipe(transform)
+            .pipe(output)
+            .on("finish", () => {
+                assert.equal(requestCount, 3,
+                    "requestCount");
+                assert.equal(results.length, 1,
+                    "results.length");
+                assert.equal(results[0].attempt, 3,
+                    "attempt");
+                assert.equal(results[0].output.statusCode,
+                    200, "statusCode");
+                done();
+            });
+        input.write("http://example.com/timeout");
+        input.push(null);
+    });
 });
