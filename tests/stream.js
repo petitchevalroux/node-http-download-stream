@@ -15,7 +15,9 @@ const path = require("path"),
 describe("Stream", () => {
     it("Should emit an error when downloading do", () => {
         return new Promise(function(resolve) {
-            const transform = new Transform();
+            const transform = new Transform({
+                "retries": 0
+            });
             sinon.stub(transform.httpClient, "get")
                 .callsFake((chunk, cb) => {
                     cb(new Error("dummy"));
@@ -129,5 +131,45 @@ describe("Stream", () => {
         input.write("http://example.com/second");
         input.write("http://example.com/third");
 
+    });
+
+    it("Should retry until retry settings on server error", (done) => {
+        let requestCount = 0;
+        nock("http://example.com")
+            .get("/retry")
+            .times(5)
+            .reply((uri, request, cb) => {
+                requestCount++;
+                cb(null, [500, ""]);
+            });
+        const results = [];
+        const input = new PassThrough();
+        const output = new Writable({
+            "objectMode": true,
+            "write": (chunk, encoding, callback) => {
+                results.push(chunk);
+                callback();
+            }
+        });
+        const transform = new Transform({
+            retries: 4,
+            retryMinTimeout: 0
+        });
+        input
+            .pipe(transform)
+            .pipe(output)
+            .on("finish", () => {
+                assert.equal(requestCount, 5,
+                    "requestCount");
+                assert.equal(results.length, 1,
+                    "results.length");
+                assert.equal(results[0].attempt, 5,
+                    "attempt");
+                assert.equal(results[0].output.statusCode,
+                    500, "statusCode");
+                done();
+            });
+        input.write("http://example.com/retry");
+        input.push(null);
     });
 });

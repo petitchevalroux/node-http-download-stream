@@ -7,6 +7,7 @@ const Error = require("@petitchevalroux/error");
 const {
     RateLimiter
 } = require("limiter");
+const retry = require("retry");
 
 class HttpDownloadStream extends Transform {
     constructor(options) {
@@ -16,7 +17,9 @@ class HttpDownloadStream extends Transform {
             "maxRedirects": 2,
             "readableObjectMode": true,
             "rateCount": 5,
-            "rateWindow": 10000
+            "rateWindow": 10000,
+            "retries": 3,
+            "retryMinTimeout": 2500
         }, options || {});
         super(options);
         if (typeof(options.httpClient) === "undefined") {
@@ -33,12 +36,13 @@ class HttpDownloadStream extends Transform {
             this.httpClient = options.httpClient;
         }
         this.limiter = new RateLimiter(options.rateCount, options.rateWindow);
+        this.retries = options.retries;
+        this.retryMinTimeout = options.retryMinTimeout;
     }
 
-    _transform(chunk, encoding, callback) {
-
+    get(chunk, callback) {
         const self = this;
-        this.limiter.removeTokens(1, function(err) {
+        self.limiter.removeTokens(1, function(err) {
             if (err) {
                 callback(err);
                 return;
@@ -63,6 +67,32 @@ class HttpDownloadStream extends Transform {
                         }
                     }
                 );
+            });
+        });
+    }
+
+    _transform(chunk, encoding, callback) {
+        const self = this;
+        const operation = retry.operation({
+            "minTimeout": this.retryMinTimeout,
+            "retries": this.retries
+        });
+        operation.attempt((attempt) => {
+            self.get(chunk, function(err, response) {
+                if (!err && response.output.statusCode >
+                    499) {
+                    if (attempt <= self.retries) {
+                        err = 499;
+                    }
+                }
+                if (operation.retry(err)) {
+                    return;
+                }
+                if (response) {
+                    response.attempt = attempt;
+                }
+                callback(err ? operation.mainError() : null,
+                    response);
             });
         });
     }
