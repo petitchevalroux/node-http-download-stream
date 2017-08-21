@@ -2,7 +2,8 @@
 const path = require("path"),
     Promise = require("bluebird"),
     {
-        Transform
+        Transform,
+        HttpError
     } = require(path.join(__dirname, "..", "src")),
     {
         PassThrough,
@@ -13,7 +14,7 @@ const path = require("path"),
     assert = require("assert");
 
 describe("Stream", () => {
-    it("Should emit an error when downloading do", () => {
+    it("Should emit an HttpError when downloading do", () => {
         return new Promise(function(resolve) {
             const transform = new Transform({
                 "retries": 0
@@ -24,7 +25,8 @@ describe("Stream", () => {
                 });
             const input = new PassThrough();
             input.pipe(transform)
-                .on("error", function() {
+                .on("error", function(err) {
+                    assert(err instanceof HttpError);
                     resolve();
                 });
             input.write("http://example.com");

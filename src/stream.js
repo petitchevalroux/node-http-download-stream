@@ -1,13 +1,13 @@
 "use strict";
 const {
     Transform
-} = require("stream");
-const request = require("request");
-const Error = require("@petitchevalroux/error");
-const {
-    RateLimiter
-} = require("limiter");
-const retry = require("retry");
+} = require("stream"),
+    request = require("request"),
+    path = require("path"),
+    HttpError = require(path.join(__dirname, "errors", "http")), {
+        RateLimiter
+    } = require("limiter"),
+    retry = require("retry");
 
 class HttpDownloadStream extends Transform {
     constructor(options) {
@@ -52,9 +52,7 @@ class HttpDownloadStream extends Transform {
             }
             self.httpClient.get(chunk, (err, response, body) => {
                 if (err) {
-                    callback(new Error(
-                        "Unable to download (chunk: %s)",
-                        chunk, err));
+                    callback(new HttpError(err));
                     return;
                 }
                 callback(
