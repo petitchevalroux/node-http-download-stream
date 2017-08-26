@@ -2,7 +2,6 @@
 const {
     Transform
 } = require("stream"),
-    request = require("request"),
     path = require("path"),
     urlModule = require("url"),
     Promise = require("bluebird"),
@@ -21,17 +20,6 @@ class HttpDownloadStream extends Transform {
             "retryMinTimeout": 2500,
             "maxParallelHosts": 10
         }, options || {});
-        if (typeof(instanceOptions.httpClient) === "undefined") {
-            instanceOptions.httpClient = request.defaults({
-                "timeout": instanceOptions.timeout,
-                "followRedirect": instanceOptions.followRedirect,
-                "maxRedirects": instanceOptions.maxRedirects,
-                "gzip": true,
-                "headers": {
-                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:49.0) Gecko/20100101 Firefox/49.0"
-                }
-            });
-        }
         super(instanceOptions);
         this.hostFetchersCount = 0;
         this.maxHostFetchers = instanceOptions.maxParallelHosts;
