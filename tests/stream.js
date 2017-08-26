@@ -10,7 +10,6 @@ const path = require("path"),
         Writable
     } = require("stream"),
     nock = require("nock"),
-    sinon = require("sinon"),
     assert = require("assert");
 
 describe("Stream", () => {
@@ -19,17 +18,22 @@ describe("Stream", () => {
             const transform = new Transform({
                 "retries": 0
             });
-            sinon.stub(transform.httpClient, "get")
-                .callsFake((chunk, cb) => {
-                    cb(new Error("dummy"));
+            nock("http://example.com")
+                .get("/error")
+                .replyWithError({
+                    message: "something awful happened",
+                    code: "AWFUL_ERROR"
                 });
             const input = new PassThrough();
             input.pipe(transform)
                 .on("error", function(err) {
                     assert(err instanceof HttpError);
+                    assert.equal(err.url,
+                        "http://example.com/error"
+                    );
                     resolve();
                 });
-            input.write("http://example.com");
+            input.write("http://example.com/error");
         });
 
     });
@@ -38,7 +42,7 @@ describe("Stream", () => {
         const transform = new Transform({
             httpClient: "foo"
         });
-        assert.equal(transform.httpClient, "foo");
+        assert.equal(transform.options.httpClient, "foo");
     });
 
     it("Should not download an url when another one is downloading", () => {
