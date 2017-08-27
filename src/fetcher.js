@@ -78,13 +78,17 @@ class HttpFetcher {
             });
             operation.attempt((attempt) => {
                 self.attempt(url, function(err, response) {
-                    if (!err && response.output.statusCode >
-                        499) {
-                        if (attempt <= self.retries) {
-                            err = 499;
-                        }
-                    }
-                    if (operation.retry(err)) {
+                    if (operation.retry(err || (
+                            response.output.statusCode >
+                            499 ?
+                            new Error(
+                                "Wrong http status " +
+                                JSON.stringify({
+                                    status: response
+                                        .output
+                                        .statusCode,
+                                    url: url
+                                })) : false))) {
                         return;
                     }
                     const rejectError = err ?
