@@ -10,7 +10,7 @@ const request = require("request"),
 
 class HttpFetcher {
     constructor(options) {
-        options = Object.assign({
+        const instanceOptions = Object.assign({
             "timeout": 5000,
             "followRedirect": true,
             "maxRedirects": 2,
@@ -20,22 +20,23 @@ class HttpFetcher {
             "retries": 3,
             "retryMinTimeout": 2500
         }, options || {});
-        if (typeof(options.httpClient) === "undefined") {
+        if (typeof(instanceOptions.httpClient) === "undefined") {
             this.httpClient = request.defaults({
-                "timeout": options.timeout,
-                "followRedirect": options.followRedirect,
-                "maxRedirects": options.maxRedirects,
+                "timeout": instanceOptions.timeout,
+                "followRedirect": instanceOptions.followRedirect,
+                "maxRedirects": instanceOptions.maxRedirects,
                 "gzip": true,
                 "headers": {
                     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:49.0) Gecko/20100101 Firefox/49.0"
                 }
             });
         } else {
-            this.httpClient = options.httpClient;
+            this.httpClient = instanceOptions.httpClient;
         }
-        this.limiter = new RateLimiter(options.rateCount, options.rateWindow);
-        this.retries = options.retries;
-        this.retryMinTimeout = options.retryMinTimeout;
+        this.limiter = new RateLimiter(instanceOptions.rateCount,
+            instanceOptions.rateWindow);
+        this.retries = instanceOptions.retries;
+        this.retryMinTimeout = instanceOptions.retryMinTimeout;
     }
 
     attempt(url, callback) {
