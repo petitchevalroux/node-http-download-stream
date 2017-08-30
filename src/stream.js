@@ -21,7 +21,6 @@ class HttpDownloadStream extends Transform {
             "maxParallelHosts": 10
         }, options || {});
         super(instanceOptions);
-        this.hostFetchersCount = 0;
         this.maxHostFetchers = instanceOptions.maxParallelHosts;
         delete instanceOptions.maxParallelHosts;
         this.options = instanceOptions;
@@ -52,7 +51,7 @@ class HttpDownloadStream extends Transform {
     }
 
     getHostFetcher(host) {
-        if (this.hostFetchersCount > this.maxHostFetchers) {
+        if (this.getHostFetcherCount() >= this.maxHostFetchers) {
             const self = this;
             return this
                 .deleteLeastRecentlyUsedFetcher()
@@ -66,7 +65,6 @@ class HttpDownloadStream extends Transform {
     }
 
     createHostFetcher(host) {
-        this.hostFetchersCount++;
         this.hostFetchers[host] = new Fetcher(this.options);
         return Promise.resolve(this.hostFetchers[host]);
     }
@@ -81,9 +79,13 @@ class HttpDownloadStream extends Transform {
                         "Unable to find an host fetcher to delete");
                 }
                 delete self.hostFetchers[host];
-                self.hostFetchersCount--;
                 return host;
             });
+    }
+
+    getHostFetcherCount() {
+        return Object.getOwnPropertyNames(this.hostFetchers)
+            .length;
     }
 
     getLeastRecentlyUsedFetcherHost() {

@@ -226,4 +226,40 @@ describe("Stream", () => {
         input.write("http://example.com/timeout");
         input.push(null);
     });
+
+    it("Should use maxParallelHosts", () => {
+        return new Promise(function(resolve) {
+            const transform = new Transform({
+                "retries": 0,
+                maxParallelHosts: 2
+            });
+            const input = new PassThrough();
+            input.pipe(transform)
+                .on("finish", function() {
+                    assert.deepEqual(
+                        Object.getOwnPropertyNames(
+                            transform.hostFetchers
+                        ), ["example2.com",
+                            "example3.com"
+                        ]
+                    );
+                    resolve();
+                });
+            [
+                "http://example.com",
+                "http://example2.com",
+                "http://example3.com"
+            ].forEach((host) => {
+                nock(host)
+                    .get("/index")
+                    .reply((uri, request, cb) => {
+                        cb(null, [200,
+                            "content"
+                        ]);
+                    });
+                input.write(host + "/index");
+            });
+            input.push(null);
+        });
+    });
 });
