@@ -51,16 +51,15 @@ class HttpDownloadStream extends Transform {
     }
 
     getHostFetcher(host) {
-        if (this.getHostFetcherCount() >= this.maxHostFetchers) {
-            const self = this;
-            return this
-                .deleteLeastRecentlyUsedFetcher()
-                .then(() => {
-                    return self.getHostFetcher(host);
-                });
+        if ((typeof this.hostFetchers[host]) !== "undefined") {
+            return Promise.resolve(this.hostFetchers[host]);
         }
-        return typeof(this.hostFetchers[host]) !== "undefined" ?
-            Promise.resolve(this.hostFetchers[host]) :
+        const self = this;
+        return this.getHostFetcherCount() >= this.maxHostFetchers ?
+            this.deleteLeastRecentlyUsedFetcher()
+            .then(() => {
+                return self.createHostFetcher(host);
+            }) :
             this.createHostFetcher(host);
     }
 
