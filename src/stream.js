@@ -54,13 +54,14 @@ class HttpDownloadStream extends Transform {
         if ((typeof this.hostFetchers[host]) !== "undefined") {
             return Promise.resolve(this.hostFetchers[host]);
         }
-        const self = this;
-        return this.getHostFetcherCount() >= this.maxHostFetchers ?
-            this.deleteLeastRecentlyUsedFetcher()
-            .then(() => {
-                return self.createHostFetcher(host);
-            }) :
-            this.createHostFetcher(host);
+        if (this.getHostFetcherCount() >= this.maxHostFetchers) {
+            try {
+                this.deleteLeastRecentlyUsedFetcher();
+            } catch (e) {
+                return Promise.reject(e);
+            }
+        }
+        return this.createHostFetcher(host);
     }
 
     createHostFetcher(host) {
@@ -69,17 +70,13 @@ class HttpDownloadStream extends Transform {
     }
 
     deleteLeastRecentlyUsedFetcher() {
-        const self = this;
-        return this
-            .getLeastRecentlyUsedFetcherHost()
-            .then((host) => {
-                if (!host || !self.hostFetchers[host]) {
-                    throw new Error(
-                        "Unable to find an host fetcher to delete");
-                }
-                delete self.hostFetchers[host];
-                return host;
-            });
+        const hostToDelete = this.getLeastRecentlyUsedFetcherHost();
+        if (!hostToDelete || !this.hostFetchers[hostToDelete]) {
+            throw new Error(
+                "Unable to find an host fetcher to delete (host:" +
+                hostToDelete + ")");
+        }
+        delete this.hostFetchers[hostToDelete];
     }
 
     getHostFetcherCount() {
@@ -88,24 +85,22 @@ class HttpDownloadStream extends Transform {
     }
 
     getLeastRecentlyUsedFetcherHost() {
-        return new Promise((resolve) => {
-            const hosts = Object.getOwnPropertyNames(this.hostFetchers);
-            if (!hosts.length) {
-                return resolve(null);
+        const hosts = Object.getOwnPropertyNames(this.hostFetchers);
+        if (!hosts.length) {
+            return null;
+        }
+        const self = this;
+        hosts.sort((a, b) => {
+            if (self.hostFetchers[a].lastUsed === self.hostFetchers[
+                    b].lastUsed) {
+                return 0;
             }
-            const self = this;
-            hosts.sort((a, b) => {
-                if (self.hostFetchers[a].lastUsed === self.hostFetchers[
-                        b].lastUsed) {
-                    return 0;
-                }
-                return (self.hostFetchers[a].lastUsed <
-                        self.hostFetchers[
-                            b].lastUsed) ?
-                    -1 : 1;
-            });
-            return resolve(hosts[0]);
+            return (self.hostFetchers[a].lastUsed <
+                    self.hostFetchers[
+                        b].lastUsed) ?
+                -1 : 1;
         });
+        return hosts[0];
     }
 
 
