@@ -24,35 +24,38 @@ class HttpDownloadStream extends Transform {
         this.maxHostFetchers = instanceOptions.maxParallelHosts;
         delete instanceOptions.maxParallelHosts;
         this.options = instanceOptions;
-        this.buffer = [];
         this.hostFetchers = {};
         this.downloadingCount = 0;
     }
 
-    _transform(chunk, encoding, callback) {
+    downloadUrl(url) {
         try {
-            this.downloadingCount++;
-            const host = urlModule.parse(chunk.toString())
+            const host = urlModule.parse(url)
                 .hostname;
-            this.getHostFetcher(host)
+            return this.getHostFetcher(host)
                 .then((fetcher) => {
                     fetcher.lastUsed = new Date()
                         .getTime();
-                    return fetcher
-                        .fetch(chunk.toString());
-                })
-                .then((result) => {
-                    this.downloadingCount--;
-                    return callback(null, result);
-                })
-                .catch((err) => {
-                    this.downloadingCount--;
-                    callback(err);
+                    return fetcher.fetch(url);
                 });
         } catch (e) {
-            this.downloadingCount--;
-            callback(e);
+            return Promise.reject(e);
         }
+    }
+
+    _transform(chunk, encoding, callback) {
+        this.downloadingCount++;
+        const url = chunk.toString();
+        const self = this;
+        this.downloadUrl(url)
+            .then((result) => {
+                self.downloadingCount--;
+                return callback(null, result);
+            })
+            .catch((e) => {
+                self.downloadingCount--;
+                callback(e);
+            });
     }
 
     getHostFetcher(host) {
