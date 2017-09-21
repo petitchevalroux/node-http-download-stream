@@ -26,10 +26,12 @@ class HttpDownloadStream extends Transform {
         this.options = instanceOptions;
         this.buffer = [];
         this.hostFetchers = {};
+        this.downloadingCount = 0;
     }
 
     _transform(chunk, encoding, callback) {
         try {
+            this.downloadingCount++;
             const host = urlModule.parse(chunk.toString())
                 .hostname;
             this.getHostFetcher(host)
@@ -40,12 +42,15 @@ class HttpDownloadStream extends Transform {
                         .fetch(chunk.toString());
                 })
                 .then((result) => {
+                    this.downloadingCount--;
                     return callback(null, result);
                 })
                 .catch((err) => {
+                    this.downloadingCount--;
                     callback(err);
                 });
         } catch (e) {
+            this.downloadingCount--;
             callback(e);
         }
     }
