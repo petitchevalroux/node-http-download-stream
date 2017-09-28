@@ -81,8 +81,11 @@ class HttpDownloadStream extends Transform {
         const hostToDelete = this.getLeastRecentlyUsedFetcherHost();
         if (!hostToDelete || !this.hostFetchers[hostToDelete]) {
             throw new Error(
-                "Unable to find an host fetcher to delete (host:" +
-                hostToDelete + ")");
+                "Unable to find an host fetcher to delete " + JSON.stringify({
+                    "host": hostToDelete,
+                    "count": this.getHostFetcherCount(),
+                    "max": this.maxHostFetchers
+                }));
         }
         delete this.hostFetchers[hostToDelete];
     }
