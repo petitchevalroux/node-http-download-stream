@@ -39,6 +39,42 @@ class HttpFetcher {
         this.retryMinTimeout = instanceOptions.retryMinTimeout;
     }
 
+    get(url) {
+        const self = this;
+        return new Promise((resolve, reject) => {
+            try {
+                got(url, self.httpOptions)
+                    .then((response) => {
+                        return resolve({
+                            "input": url,
+                            "output": {
+                                "headers": response.headers,
+                                "statusCode": response.statusCode,
+                                "body": response.body
+                            }
+                        });
+                    })
+                    .catch(err => {
+                        // Non 2xx code
+                        if (err instanceof got.HTTPError) {
+                            return resolve({
+                                "input": url,
+                                "output": {
+                                    "headers": err.headers ?
+                                        err.headers : [],
+                                    "statusCode": err.statusCode,
+                                    "body": ""
+                                }
+                            });
+                        }
+                        reject(err);
+                    });
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
     attempt(url, callback) {
         const self = this;
         self.limiter.removeTokens(1, function(err) {
@@ -46,39 +82,16 @@ class HttpFetcher {
                 callback(err);
                 return;
             }
-            got(url, self.httpOptions)
-                .then((response) => {
-                    callback(
-                        null, {
-                            "input": url,
-                            "output": {
-                                "headers": response.headers,
-                                "statusCode": response.statusCode,
-                                "body": response.body
-                            }
-                        }
-                    );
-                    return response;
+            self.get(url)
+                .then(result => {
+                    return callback(null, result);
                 })
-                .catch((err) => {
-                    // Non 2xx code
-                    if (err instanceof got.HTTPError) {
-                        return callback(null, {
-                            "input": url,
-                            "output": {
-                                "headers": err.headers ?
-                                    err.headers : [],
-                                "statusCode": err.statusCode,
-                                "body": ""
-                            }
-                        });
-                    }
+                .catch(err => {
                     callback(Object.assign(
                         new HttpError(err), {
-                            "url": url,
+                            "url": url
                         }));
                 });
-
         });
     }
 
