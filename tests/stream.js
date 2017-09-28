@@ -179,12 +179,12 @@ describe("Stream", () => {
         input.push(null);
     });
 
-    it("Should retry on socket timeout", (done) => {
+    it("Should retry on timeout", (done) => {
         let requestCount = 0;
         nock("http://example.com")
             .get("/timeout")
             .times(2)
-            .socketDelay(100)
+            .delay(100)
             .reply((uri, request, cb) => {
                 requestCount++;
                 cb(null, [200, ""]);
