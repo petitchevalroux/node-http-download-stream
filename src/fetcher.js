@@ -30,8 +30,11 @@ class HttpFetcher {
             retries: 0
         };
 
-        this.limiter = new RateLimiter(instanceOptions.rateCount,
-            instanceOptions.rateWindow);
+        this.limiter = new RateLimiter(
+            instanceOptions.rateCount,
+            instanceOptions.rateWindow
+        );
+
         this.retries = instanceOptions.retries;
         this.retryMinTimeout = instanceOptions.retryMinTimeout;
     }
