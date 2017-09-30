@@ -5,7 +5,8 @@ const {
     path = require("path"),
     urlModule = require("url"),
     Promise = require("bluebird"),
-    Fetcher = require(path.join(__dirname, "fetcher"));
+    Fetcher = require(path.join(__dirname, "fetcher")),
+    Cache = require("lru-cache");
 
 class HttpDownloadStream extends Transform {
     constructor(options) {
@@ -21,20 +22,17 @@ class HttpDownloadStream extends Transform {
             "maxParallelHosts": 10
         }, options || {});
         super(instanceOptions);
-        this.maxHostFetchers = instanceOptions.maxParallelHosts;
+        this.fetchersCache = new Cache(instanceOptions.maxParallelHosts);
         delete instanceOptions.maxParallelHosts;
         this.options = instanceOptions;
-        this.hostFetchers = {};
         this.downloadingCount = 0;
     }
 
     downloadUrl(url) {
         try {
-            const fetcher = this.getHostFetcher(urlModule.parse(url)
-                .hostname);
-            fetcher.lastUsed = new Date()
-                .getTime();
-            return fetcher.fetch(url);
+            return this.getFetcher(urlModule.parse(url)
+                    .hostname)
+                .fetch(url);
         } catch (e) {
             return Promise.reject(e);
         }
@@ -55,55 +53,18 @@ class HttpDownloadStream extends Transform {
             });
     }
 
-    getHostFetcher(host) {
-        if ((typeof this.hostFetchers[host]) === "undefined") {
-            if (this.getHostFetcherCount() >= this.maxHostFetchers) {
-                this.deleteLeastRecentlyUsedFetcher();
-            }
-            this.hostFetchers[host] = new Fetcher(this.options);
+    getFetcher(host) {
+        let fetcher = this.fetchersCache.get(host);
+        if (fetcher === undefined) {
+            fetcher = new Fetcher(this.options);
+            this.fetchersCache.set(host, fetcher);
         }
-        return this.hostFetchers[host];
+        return fetcher;
     }
 
-    deleteLeastRecentlyUsedFetcher() {
-        const hostToDelete = this.getLeastRecentlyUsedFetcherHost();
-        if (!hostToDelete || !this.hostFetchers[hostToDelete]) {
-            throw new Error(
-                "Unable to find an host fetcher to delete " + JSON.stringify({
-                    "host": hostToDelete,
-                    "count": this.getHostFetcherCount(),
-                    "max": this.maxHostFetchers,
-                    "hosts": Object.getOwnPropertyNames(this.hostFetchers)
-                }));
-        }
-        delete this.hostFetchers[hostToDelete];
+    getFetcherHosts() {
+        return this.fetchersCache.keys();
     }
-
-    getHostFetcherCount() {
-        return Object.getOwnPropertyNames(this.hostFetchers)
-            .length;
-    }
-
-    getLeastRecentlyUsedFetcherHost() {
-        const hosts = Object.getOwnPropertyNames(this.hostFetchers);
-        if (!hosts.length) {
-            return null;
-        }
-        const self = this;
-        hosts.sort((a, b) => {
-            if (self.hostFetchers[a].lastUsed === self.hostFetchers[
-                    b].lastUsed) {
-                return 0;
-            }
-            return (self.hostFetchers[a].lastUsed <
-                    self.hostFetchers[
-                        b].lastUsed) ?
-                -1 : 1;
-        });
-        return hosts[0];
-    }
-
-
 }
 
 module.exports = HttpDownloadStream;

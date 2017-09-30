@@ -237,12 +237,11 @@ describe("Stream", () => {
             input.pipe(transform)
                 .on("finish", function() {
                     assert.deepEqual(
-                        Object.getOwnPropertyNames(
-                            transform.hostFetchers
-                        ), ["example2.com",
+                        transform.getFetcherHosts()
+                        .sort(), [
+                            "example2.com",
                             "example3.com"
-                        ]
-                    );
+                        ]);
                     resolve();
                 });
             [
