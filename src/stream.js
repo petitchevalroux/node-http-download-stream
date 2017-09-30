@@ -84,7 +84,8 @@ class HttpDownloadStream extends Transform {
                 "Unable to find an host fetcher to delete " + JSON.stringify({
                     "host": hostToDelete,
                     "count": this.getHostFetcherCount(),
-                    "max": this.maxHostFetchers
+                    "max": this.maxHostFetchers,
+                    "hosts": Object.getOwnPropertyNames(this.hostFetchers)
                 }));
         }
         delete this.hostFetchers[hostToDelete];
