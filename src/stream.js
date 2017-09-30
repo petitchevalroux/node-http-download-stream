@@ -30,14 +30,11 @@ class HttpDownloadStream extends Transform {
 
     downloadUrl(url) {
         try {
-            const host = urlModule.parse(url)
-                .hostname;
-            return this.getHostFetcher(host)
-                .then((fetcher) => {
-                    fetcher.lastUsed = new Date()
-                        .getTime();
-                    return fetcher.fetch(url);
-                });
+            const fetcher = this.getHostFetcher(urlModule.parse(url)
+                .hostname);
+            fetcher.lastUsed = new Date()
+                .getTime();
+            return fetcher.fetch(url);
         } catch (e) {
             return Promise.reject(e);
         }
@@ -59,22 +56,13 @@ class HttpDownloadStream extends Transform {
     }
 
     getHostFetcher(host) {
-        if ((typeof this.hostFetchers[host]) !== "undefined") {
-            return Promise.resolve(this.hostFetchers[host]);
-        }
-        if (this.getHostFetcherCount() >= this.maxHostFetchers) {
-            try {
+        if ((typeof this.hostFetchers[host]) === "undefined") {
+            if (this.getHostFetcherCount() >= this.maxHostFetchers) {
                 this.deleteLeastRecentlyUsedFetcher();
-            } catch (e) {
-                return Promise.reject(e);
             }
+            this.hostFetchers[host] = new Fetcher(this.options);
         }
-        return this.createHostFetcher(host);
-    }
-
-    createHostFetcher(host) {
-        this.hostFetchers[host] = new Fetcher(this.options);
-        return Promise.resolve(this.hostFetchers[host]);
+        return this.hostFetchers[host];
     }
 
     deleteLeastRecentlyUsedFetcher() {
