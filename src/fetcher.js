@@ -20,6 +20,7 @@ class HttpFetcher {
             "retries": 3,
             "retryMinTimeout": 2500
         }, options || {});
+
         this.httpOptions = {
             "timeout": instanceOptions.timeout,
             "followRedirect": instanceOptions.followRedirect,
@@ -29,12 +30,11 @@ class HttpFetcher {
             },
             retries: 0
         };
-
         this.limiter = new RateLimiter(
             instanceOptions.rateCount,
             instanceOptions.rateWindow
         );
-
+        this.limiterSemaphore = require("semaphore")(1);
         this.retries = instanceOptions.retries;
         this.retryMinTimeout = instanceOptions.retryMinTimeout;
     }
@@ -75,23 +75,37 @@ class HttpFetcher {
         });
     }
 
+
     attempt(url, callback) {
         const self = this;
-        self.limiter.removeTokens(1, function(err) {
-            if (err) {
-                callback(err);
-                return;
-            }
-            self.get(url)
-                .then(result => {
-                    return callback(null, result);
-                })
-                .catch(err => {
-                    callback(Object.assign(
-                        new HttpError(err), {
-                            "url": url
-                        }));
-                });
+        self.limiterSemaphore.take(() => {
+            self.limiter.removeTokens(1, (err) => {
+                if (err) {
+                    return self.leaveLimiterSemaphoreCallback(
+                        err,
+                        null,
+                        callback
+                    );
+                }
+                self.get(url)
+                    .then(result => {
+                        return self.leaveLimiterSemaphoreCallback(
+                            null,
+                            result,
+                            callback
+                        );
+                    })
+                    .catch(err => {
+                        return self.leaveLimiterSemaphoreCallback(
+                            Object.assign(
+                                new HttpError(err), {
+                                    "url": url
+                                }),
+                            null,
+                            callback
+                        );
+                    });
+            });
         });
     }
 
@@ -129,6 +143,11 @@ class HttpFetcher {
                 });
             });
         });
+    }
+
+    leaveLimiterSemaphoreCallback(err, result, callback) {
+        this.limiterSemaphore.leave();
+        callback(err, result);
     }
 }
 

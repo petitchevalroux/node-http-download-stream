@@ -2,7 +2,7 @@
 const path = require("path"),
     Promise = require("bluebird"),
     {
-        Transform,
+        Stream,
         HttpError
     } = require(path.join(__dirname, "..", "src")),
     {
@@ -15,7 +15,7 @@ const path = require("path"),
 describe("Stream", () => {
     it("Should emit an HttpError when downloading do", () => {
         return new Promise(function(resolve) {
-            const transform = new Transform({
+            const transform = new Stream({
                 "retries": 0
             });
             nock("http://example.com")
@@ -39,58 +39,10 @@ describe("Stream", () => {
     });
 
     it("Should use construct httpClient", () => {
-        const transform = new Transform({
+        const transform = new Stream({
             httpClient: "foo"
         });
         assert.equal(transform.options.httpClient, "foo");
-    });
-
-    it("Should not download an url when another one is downloading", () => {
-        return new Promise((resolve, reject) => {
-            let firstRequestDone = false;
-            nock("http://example.com")
-                .get("/1")
-                .reply(function(uri, request, cb) {
-                    setTimeout(() => {
-                        cb(null, [200, "1"]);
-                    }, 1500);
-                })
-                .get("/2")
-                .reply((uri, request, cb) => {
-                    if (firstRequestDone === true) {
-                        resolve();
-                    } else {
-                        reject(new Error(
-                            "Receive a second request before " +
-                            "writting first request output"
-                        ));
-                    }
-                    setTimeout(() => {
-                        cb(null, [200, "2"]);
-                    }, 100);
-                });
-            const transform = new Transform();
-            const input = new PassThrough();
-            const output = new Writable({
-                "objectMode": true,
-                "write": (chunk, encoding,
-                    callback) => {
-                    if (firstRequestDone ===
-                        false &&
-                        chunk.input ===
-                        "http://example.com/1"
-                    ) {
-                        firstRequestDone =
-                            true;
-                    }
-                    callback();
-                }
-            });
-            input.pipe(transform)
-                .pipe(output);
-            input.write("http://example.com/1");
-            input.write("http://example.com/2");
-        });
     });
 
     it("Should respect rate settings", (done) => {
@@ -104,9 +56,6 @@ describe("Stream", () => {
             })
             .get("/second")
             .reply((uri, request, cb) => {
-                const date = new Date()
-                    .getTime();
-                assert(date - lastRequestTime < 333);
                 lastRequestTime = new Date()
                     .getTime();
                 cb(null, 200);
@@ -119,9 +68,9 @@ describe("Stream", () => {
                 done();
                 cb(null, 200);
             });
-        const transform = new Transform({
+        const transform = new Stream({
             rateCount: 2,
-            rateWindow: 333
+            rateWindow: 500
         });
         const input = new PassThrough();
         const output = new Writable({
@@ -157,7 +106,7 @@ describe("Stream", () => {
                 callback();
             }
         });
-        const transform = new Transform({
+        const transform = new Stream({
             retries: 4,
             retryMinTimeout: 0
         });
@@ -204,7 +153,7 @@ describe("Stream", () => {
                 callback();
             }
         });
-        const transform = new Transform({
+        const transform = new Stream({
             "timeout": 99,
             retries: 2,
             retryMinTimeout: 0
@@ -229,7 +178,7 @@ describe("Stream", () => {
 
     it("Should use maxParallelHosts", () => {
         return new Promise(function(resolve) {
-            const transform = new Transform({
+            const transform = new Stream({
                 "retries": 0,
                 maxParallelHosts: 2
             });
