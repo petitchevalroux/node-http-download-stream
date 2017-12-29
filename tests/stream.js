@@ -2,7 +2,7 @@
 const path = require("path"),
     Promise = require("bluebird"),
     {
-        Transform,
+        Stream,
         HttpError
     } = require(path.join(__dirname, "..", "src")),
     {
@@ -15,7 +15,7 @@ const path = require("path"),
 describe("Stream", () => {
     it("Should emit an HttpError when downloading do", () => {
         return new Promise(function(resolve) {
-            const transform = new Transform({
+            const transform = new Stream({
                 "retries": 0
             });
             nock("http://example.com")
@@ -39,7 +39,7 @@ describe("Stream", () => {
     });
 
     it("Should use construct httpClient", () => {
-        const transform = new Transform({
+        const transform = new Stream({
             httpClient: "foo"
         });
         assert.equal(transform.options.httpClient, "foo");
@@ -69,7 +69,7 @@ describe("Stream", () => {
                         cb(null, [200, "2"]);
                     }, 100);
                 });
-            const transform = new Transform();
+            const transform = new Stream();
             const input = new PassThrough();
             const output = new Writable({
                 "objectMode": true,
@@ -119,7 +119,7 @@ describe("Stream", () => {
                 done();
                 cb(null, 200);
             });
-        const transform = new Transform({
+        const transform = new Stream({
             rateCount: 2,
             rateWindow: 333
         });
@@ -157,7 +157,7 @@ describe("Stream", () => {
                 callback();
             }
         });
-        const transform = new Transform({
+        const transform = new Stream({
             retries: 4,
             retryMinTimeout: 0
         });
@@ -204,7 +204,7 @@ describe("Stream", () => {
                 callback();
             }
         });
-        const transform = new Transform({
+        const transform = new Stream({
             "timeout": 99,
             retries: 2,
             retryMinTimeout: 0
@@ -229,7 +229,7 @@ describe("Stream", () => {
 
     it("Should use maxParallelHosts", () => {
         return new Promise(function(resolve) {
-            const transform = new Transform({
+            const transform = new Stream({
                 "retries": 0,
                 maxParallelHosts: 2
             });
